@@ -28,7 +28,7 @@ export interface ISessionService {
 }
 
 export interface ITreeStorage {
-    load(): Promise<DesitionTree>
+    load(): Promise<DesitionTree | null>
     save(tree: DesitionTree): Promise<boolean>
 }
 

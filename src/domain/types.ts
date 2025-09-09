@@ -25,7 +25,6 @@ export interface DesitionTree {
 }
 
 export interface TreeContext {
-    isFinished: boolean;
     currentNode: TreeNode;
     pendingAnswer?: Answer;
 }

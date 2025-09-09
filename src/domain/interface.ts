@@ -1,6 +1,8 @@
 import type { DesitionTree, TreeContext, QuestionNode, Answer, ResultNode } from "./types.js"
 
 export interface IInferenceService {
+    start(): TreeContext
+
     selectAnswer(
         context: TreeContext,
         answer: Answer

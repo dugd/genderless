@@ -33,17 +33,17 @@ export interface ITreeStorage {
 }
 
 export interface ITreeEditService {
-    addNode(parent: QuestionNode, question: string): QuestionNode
+    createTree(firstQuestion: string): QuestionNode
 
-    removeNode(nodeId: number, tree: DesitionTree): DesitionTree
+    createChildQuestion(parentId: number, answer: string, question: string): { node: QuestionNode, edge: Answer }
 
-    updateNode(nodeId: number, newQuestion: string): DesitionTree
+    createChildResult(parentId: number, answer: string, result: string, desc?: string): { node: ResultNode, edge: Answer }
 
-    addAnswer(nodeId: number, answer: Answer, tree: DesitionTree): DesitionTree
+    updateQuestion(nodeId: number, newQuestion: string): void
 
-    removeAnswer(nodeId: number, answerIndex: number, tree: DesitionTree): DesitionTree
+    updateResult(nodeId: number, newResult: string, newDesc?: string): void
 
-    updateAnswer(nodeId: number, answerIndex: number, newText: string): DesitionTree
+    updateAnswerText(nodeId: number, answerId: number, newText: string): void
 
-    setResult(nodeId: number, answerIndex: number, result: ResultNode, tree: DesitionTree): DesitionTree
+    deleteNode(nodeId: number): void
 }

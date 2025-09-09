@@ -1,25 +1,24 @@
+export type Node = {
+    id: number;
+    label: string;
+}
+
 export type Answer = {
-    text: string;
-    next?: QuestionNode;
-    result?: ResultNode;
+    answer: string;
+    next: TreeNode;
 }
 
-export interface ITreeNode {
-    id: number;
-    title: string;
-}
-
-export type QuestionNode = {
-    id: number;
+export interface QuestionNode extends Node {
     question: string;
     answers: Answer[];
 }
 
-export type ResultNode = {
-    id: number;
-    text: string;
-    desc?: string;   
+export interface ResultNode extends Node {
+    result: string;
+    desc?: string;
 }
+
+export type TreeNode = QuestionNode | ResultNode;
 
 export interface DesitionTree {
     root: QuestionNode;
@@ -27,7 +26,6 @@ export interface DesitionTree {
 
 export interface TreeContext {
     isFinished: boolean;
-    currentNode: QuestionNode;
+    currentNode: TreeNode;
     pendingAnswer?: Answer;
-    result?: ResultNode;
 }

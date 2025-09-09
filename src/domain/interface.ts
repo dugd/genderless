@@ -47,3 +47,7 @@ export interface ITreeEditService {
 
     deleteNode(nodeId: number): void
 }
+
+export interface ITreeValidator {
+    validate(tree: DesitionTree): boolean 
+}

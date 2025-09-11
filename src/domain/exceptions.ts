@@ -21,3 +21,7 @@ export class NodeNotFound extends NotFoundError {
 export class TransitionMissing extends DomainError {
 
 }
+
+export class ValidateError extends DomainError {
+    
+}

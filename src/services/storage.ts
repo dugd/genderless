@@ -11,7 +11,6 @@ export default class LocalJSONTreeStorage implements ITreeStorage {
 
     async load(): Promise<DesitionTree | null> {
         try {
-            await fs.access(this.filePath, fs.constants.F_OK);
             const raw = await fs.readFile(this.filePath, { encoding: 'utf-8', });
             return JSON.parse(raw) as DesitionTree;
         } catch (e) {
@@ -21,7 +20,9 @@ export default class LocalJSONTreeStorage implements ITreeStorage {
     }
     async save(tree: DesitionTree): Promise<boolean> {
         try {
-            await fs.writeFile(this.filePath, JSON.stringify(tree), { encoding: 'utf-8', });
+            const tmp = this.filePath + ".tmp"; // no rewrite
+            await fs.writeFile(tmp, JSON.stringify(tree), { encoding: 'utf-8', });
+            await fs.rename(tmp, this.filePath);
             return true;
         } catch (e) {
             console.error("Error: saving to file");

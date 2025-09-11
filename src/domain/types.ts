@@ -1,30 +1,38 @@
-export type Node = {
-    id: number;
-    label: string;
+export type NodeId = string; // easy to change
+export type AnswerId = string;
+
+export type AnswerEdge = {
+  id: AnswerId;
+  text: string;
+  to: NodeId; // id > ref
+};
+
+export interface BaseNode { 
+  id: NodeId; 
+  label: string; 
+  type: "question" | "result"; 
 }
 
-export type Answer = {
-    answer: string;
-    next: TreeNode;
+export interface QuestionNode extends BaseNode {
+  type: "question";
+  question: string;
+  answers: AnswerEdge[];
 }
 
-export interface QuestionNode extends Node {
-    question: string;
-    answers: Answer[];
-}
-
-export interface ResultNode extends Node {
-    result: string;
-    desc?: string;
+export interface ResultNode extends BaseNode {
+  type: "result";
+  result: string;
+  desc?: string;
 }
 
 export type TreeNode = QuestionNode | ResultNode;
 
 export interface DesitionTree {
-    root: QuestionNode;
+    rootId: NodeId;
+    nodes: Record<NodeId, TreeNode>;
 }
 
 export interface TreeContext {
-    currentNode: TreeNode;
-    pendingAnswer?: Answer;
+    currentId: NodeId;
+    pendingAnswerId?: AnswerId;
 }

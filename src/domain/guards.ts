@@ -1,9 +1,9 @@
-import type { Node, QuestionNode, ResultNode } from "./types.js";
+import type { TreeNode, QuestionNode, ResultNode } from "./types.js";
 
-export function isQuestionNode(node: Node): node is QuestionNode {
-    return 'question' in node && 'answers' in node;
+export function isQuestionNode(node: TreeNode): node is QuestionNode {
+    return node.type === "question";
 }
 
-export function isResultNode(node: Node): node is ResultNode {
-    return 'result' in node && 'desc' in node;
+export function isResultNode(node: TreeNode): node is ResultNode {
+    return node.type === "result";
 }

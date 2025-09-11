@@ -1,20 +1,22 @@
-import type { DesitionTree, TreeContext, QuestionNode, Answer, ResultNode } from "./types.js"
+import type { DesitionTree, TreeContext, QuestionNode, AnswerEdge, ResultNode, AnswerId, TreeNode, NodeId } from "./types.js"
 
 export interface IInferenceService {
+    getNode(id: NodeId): TreeNode
+
     start(): TreeContext
 
     selectAnswer(
-        context: TreeContext,
-        answer: Answer
+        ctx: TreeContext,
+        answerId: AnswerId
     ): TreeContext
 
     confirmAnswer(
-        context: TreeContext,
+        ctx: TreeContext,
     ): TreeContext,
 
-    isFinished(context: TreeContext): boolean
+    isFinished(ctx: TreeContext): boolean
 
-    getResult(context: TreeContext): ResultNode | undefined
+    getResult(ctx: TreeContext): ResultNode | undefined
 }
 
 export interface ISessionService {
@@ -22,7 +24,7 @@ export interface ISessionService {
 
     getHistory(): TreeContext[]
 
-    push(context: TreeContext): void
+    push(ctx: TreeContext): void
 
     back(): TreeContext
 
@@ -35,11 +37,11 @@ export interface ITreeStorage {
 }
 
 export interface ITreeEditService {
-    createTree(firstQuestion: string): QuestionNode
+    createTree(firstQuestion: string): NodeId
 
-    createChildQuestion(parentId: number, answer: string, question: string): { node: QuestionNode, edge: Answer }
+    createChildQuestion(parentId: number, answer: string, question: string): { nodeId: NodeId, edgeId: AnswerId }
 
-    createChildResult(parentId: number, answer: string, result: string, desc?: string): { node: ResultNode, edge: Answer }
+    createChildResult(parentId: number, answer: string, result: string, desc?: string): { nodeId: NodeId, edgeId: AnswerId }
 
     updateQuestion(nodeId: number, newQuestion: string): void
 

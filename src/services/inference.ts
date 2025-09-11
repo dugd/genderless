@@ -1,53 +1,45 @@
 import type { IInferenceService } from "../domain/interface.js";
-import type { Answer, DesitionTree, ResultNode, TreeContext } from "../domain/types.js";
-import { AnwerNotFound, WrongNodeType } from "../domain/exceptions.js"
+import type { AnswerEdge, AnswerId, DesitionTree, NodeId, ResultNode, TreeContext, TreeNode } from "../domain/types.js";
+import { AnswerNotFound, NodeNotFound, WrongNodeType } from "../domain/exceptions.js"
 import { isQuestionNode, isResultNode } from '../domain/guards.js'
 
 
 export default class InferenceService implements IInferenceService {
-    constructor (
-        private tree: DesitionTree,
-    ) {}
+    constructor(private tree: DesitionTree) {}
 
-    start(): TreeContext {
-        return {
-            currentNode: this.tree.root,
-        };
+    getNode(id: NodeId): TreeNode {
+        const n = this.tree.nodes[id];
+        if (!n) throw new NodeNotFound(`Unknown node ${id}`);
+        return n;
     }
 
-    selectAnswer(context: TreeContext, answer: Answer): TreeContext {
-        if (!isQuestionNode(context.currentNode)) {
-            throw new WrongNodeType("It is ResultNode!");
-        }
-
-        if (!context.currentNode.answers.find((a) => a.answer == answer.answer)) {
-            throw new AnwerNotFound("No find answer");
-        }
-
-        return {
-            currentNode: context.currentNode,
-            pendingAnswer: answer,
-        }
+    start(): TreeContext { 
+        return { currentId: this.tree.rootId };
     }
 
-    confirmAnswer(context: TreeContext): TreeContext {
-        if (!context.pendingAnswer) {
-            throw new AnwerNotFound("No selected answer");
+    selectAnswer(ctx: TreeContext, answerId: AnswerId): TreeContext {
+        const node = this.getNode(ctx.currentId);
+        if (!isQuestionNode(node)) throw new WrongNodeType("Cannot select answer on result");   
+        const found = node.answers.find(a => a.id === answerId);
+        if (!found) throw new AnswerNotFound();
+        return { ...ctx, pendingAnswerId: answerId };
         }
-        const currentNode = context.pendingAnswer.next;
-        return {
-            currentNode: context.pendingAnswer?.next,
-        }
+
+    confirmAnswer(ctx: TreeContext): TreeContext {
+        if (!ctx.pendingAnswerId) throw new AnswerNotFound("No pending answer");
+        const node = this.getNode(ctx.currentId);
+        if (!isQuestionNode(node)) throw new WrongNodeType("Cannot confirm on result");
+        const ans = node.answers.find(a => a.id === ctx.pendingAnswerId);
+        if (!ans) throw new AnswerNotFound(`No answer with id: ${ctx.pendingAnswerId}`);
+        return { currentId: ans.to };
     }
 
-    isFinished(context: TreeContext): boolean {
-        return isResultNode(context.currentNode);
+    isFinished(ctx: TreeContext): boolean {
+        return isResultNode(this.getNode(ctx.currentId));
     }
 
-    getResult(context: TreeContext): ResultNode | undefined {
-        if (!isResultNode(context.currentNode)) {
-            return undefined;
-        }
-        return context.currentNode;
+    getResult(ctx: TreeContext): ResultNode | undefined {
+        const n = this.getNode(ctx.currentId);
+        return isResultNode(n) ? n : undefined;
     }
 }

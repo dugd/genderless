@@ -1,0 +1,20 @@
+<% const content = `
+  <section class="card">
+    <h2>Результат</h2>
+    <article>
+      <h3>${result.result}</h3>
+      ${result.desc ? `<p>${result.desc}</p>` : ""}
+    </article>
+    <details>
+      <summary>Шлях відповідей</summary>
+      <ol>
+        ${history.map(h => `<li>${h.currentId} → ${h.pendingAnswerId}</li>`).join('')}
+      </ol>
+    </details>
+    <form method="post" action="/restart">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <button type="submit">Пройти ще раз</button>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>

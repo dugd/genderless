@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= locals.title ?? "Гендерна самоідентифікація" %></title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>Навчальний проєкт: Самоідентифікація</h1>
+      <nav><a href="/">Головна</a></nav>
+    </header>
+    <main>
+      <%- body %>
+    </main>
+    <footer>
+      <form method="post" action="/restart">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit">Почати заново</button>
+      </form>
+      <p>© Demo</p>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+<% const content = `
+  <section class="card error">
+    <h2>Помилка</h2>
+    <p>${message}</p>
+    <p><a href="/">Повернутись на головну</a></p>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken: "" }) %>

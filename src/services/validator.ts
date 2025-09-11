@@ -3,7 +3,7 @@ import { isQuestionNode } from "../domain/guards.js";
 import type { ITreeValidator } from "../domain/interface.js";
 import type { DecitionTree } from "../domain/types.js";
 
-export class TreeValidator implements ITreeValidator {
+export default class TreeValidator implements ITreeValidator {
     validate(tree: DecitionTree): boolean {
         const rootId = tree.rootId;
         if (!tree.nodes[rootId]) {

@@ -66,4 +66,5 @@ export interface ISessionFacade {
     back(): { ctx: TreeContext; node: TreeNode; finished: boolean };
     reset(): { ctx: TreeContext; node: TreeNode; finished: boolean };
     getResult(): ResultNode | undefined;
+    getHistory(): TreeContext[];
 }

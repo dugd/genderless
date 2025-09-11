@@ -1,0 +1,21 @@
+<% const content = `
+  <section class="card">
+    <h2>Питання</h2>
+    <p class="q">${node.question}</p>
+    <form method="post" action="/answer">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      ${node.answers.map(a => `
+        <div class="answer">
+          <label>
+            <input type="radio" name="answerId" value="${a.id}" required>
+            ${a.text}
+          </label>
+        </div>
+      `).join('')}
+      <div class="actions">
+        <button type="submit">Далі</button>
+      </div>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>

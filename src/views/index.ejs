@@ -1,0 +1,11 @@
+<% const content = `
+  <section class="card">
+    <h2>Початкова сторінка</h2>
+    <p>Це простий вебклієнт до дерева рішень. Натисніть, щоб створити сесію і почати.</p>
+    <form method="post" action="/start">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <button type="submit">Почати тест</button>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>

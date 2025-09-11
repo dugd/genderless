@@ -1,4 +1,4 @@
-import type { DesitionTree, TreeContext, QuestionNode, AnswerEdge, ResultNode, AnswerId, TreeNode, NodeId } from "./types.js"
+import type { DecitionTree, TreeContext, QuestionNode, AnswerEdge, ResultNode, AnswerId, TreeNode, NodeId } from "./types.js"
 
 export interface IInferenceService {
     getNode(id: NodeId): TreeNode
@@ -19,7 +19,7 @@ export interface IInferenceService {
     getResult(ctx: TreeContext): ResultNode | undefined
 }
 
-export interface ISessionService {
+export interface IDecitionTrace {
     getCurrent(): TreeContext
 
     getHistory(): TreeContext[]
@@ -28,12 +28,12 @@ export interface ISessionService {
 
     back(): TreeContext
 
-    reset(tree: DesitionTree): TreeContext
+    reset(tree: DecitionTree): TreeContext
 }
 
 export interface ITreeStorage {
-    load(): Promise<DesitionTree | null>
-    save(tree: DesitionTree): Promise<boolean>
+    load(): Promise<DecitionTree | null>
+    save(tree: DecitionTree): Promise<boolean>
 }
 
 export interface ITreeEditService {
@@ -53,5 +53,5 @@ export interface ITreeEditService {
 }
 
 export interface ITreeValidator {
-    validate(tree: DesitionTree): boolean 
+    validate(tree: DecitionTree): boolean 
 }

@@ -1,11 +1,11 @@
 import type { IInferenceService } from "../domain/interface.js";
-import type { AnswerEdge, AnswerId, DesitionTree, NodeId, ResultNode, TreeContext, TreeNode } from "../domain/types.js";
+import type { AnswerEdge, AnswerId, DecitionTree, NodeId, ResultNode, TreeContext, TreeNode } from "../domain/types.js";
 import { AnswerNotFound, NodeNotFound, WrongNodeType } from "../domain/exceptions.js"
 import { isQuestionNode, isResultNode } from '../domain/guards.js'
 
 
 export default class InferenceService implements IInferenceService {
-    constructor(private tree: DesitionTree) {}
+    constructor(private tree: DecitionTree) {}
 
     getNode(id: NodeId): TreeNode {
         const n = this.tree.nodes[id];

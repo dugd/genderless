@@ -1,5 +1,5 @@
 import type { ITreeStorage } from "../domain/interface.js";
-import type { DesitionTree } from "../domain/types.js";
+import type { DecitionTree } from "../domain/types.js";
 
 import fs from 'fs/promises';
 
@@ -9,16 +9,16 @@ export default class LocalJSONTreeStorage implements ITreeStorage {
         private filePath: string,
     ) {}
 
-    async load(): Promise<DesitionTree | null> {
+    async load(): Promise<DecitionTree | null> {
         try {
             const raw = await fs.readFile(this.filePath, { encoding: 'utf-8', });
-            return JSON.parse(raw) as DesitionTree;
+            return JSON.parse(raw) as DecitionTree;
         } catch (e) {
             console.error("Error: load from file");
             return null;
         }
     }
-    async save(tree: DesitionTree): Promise<boolean> {
+    async save(tree: DecitionTree): Promise<boolean> {
         try {
             const tmp = this.filePath + ".tmp"; // no rewrite
             await fs.writeFile(tmp, JSON.stringify(tree), { encoding: 'utf-8', });

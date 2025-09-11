@@ -27,7 +27,7 @@ export interface ResultNode extends BaseNode {
 
 export type TreeNode = QuestionNode | ResultNode;
 
-export interface DesitionTree {
+export interface DecitionTree {
     rootId: NodeId;
     nodes: Record<NodeId, TreeNode>;
 }

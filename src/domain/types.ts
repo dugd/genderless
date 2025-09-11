@@ -28,11 +28,18 @@ export interface ResultNode extends BaseNode {
 export type TreeNode = QuestionNode | ResultNode;
 
 export interface DecitionTree {
-    rootId: NodeId;
-    nodes: Record<NodeId, TreeNode>;
+  rootId: NodeId;
+  nodes: Record<NodeId, TreeNode>;
 }
 
 export interface TreeContext {
-    currentId: NodeId;
-    pendingAnswerId?: AnswerId;
+  currentId: NodeId;
+  pendingAnswerId?: AnswerId;
+}
+
+export interface TraceEvent {
+  at: number;
+  from: NodeId;
+  answerId?: AnswerId;
+  to: NodeId;
 }

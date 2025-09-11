@@ -1,9 +1,9 @@
-import type { DecitionTree, TreeContext, QuestionNode, AnswerEdge, ResultNode, AnswerId, TreeNode, NodeId } from "./types.js"
+import type { DecitionTree, TreeContext, QuestionNode, AnswerEdge, ResultNode, AnswerId, TreeNode, NodeId, TraceEvent } from "./types.js"
 
 export interface IInferenceService {
     getNode(id: NodeId): TreeNode
 
-    start(): TreeContext
+    set(): TreeContext
 
     selectAnswer(
         ctx: TreeContext,
@@ -12,7 +12,11 @@ export interface IInferenceService {
 
     confirmAnswer(
         ctx: TreeContext,
-    ): TreeContext,
+    ): TreeContext
+
+    apply(ctx: TreeContext, answerId: AnswerId): TreeContext
+
+    peekNext(ctx: TreeContext, answerId: AnswerId): NodeId
 
     isFinished(ctx: TreeContext): boolean
 
@@ -28,7 +32,7 @@ export interface IDecitionTrace {
 
     back(): TreeContext
 
-    reset(tree: DecitionTree): TreeContext
+    reset(): TreeContext
 }
 
 export interface ITreeStorage {
@@ -54,4 +58,12 @@ export interface ITreeEditService {
 
 export interface ITreeValidator {
     validate(tree: DecitionTree): boolean 
+}
+
+export interface ISessionFacade {
+    getCurrent(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+    apply(answerId: AnswerId): { ctx: TreeContext; node: TreeNode; finished: boolean };
+    back(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+    reset(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+    getResult(): ResultNode | undefined;
 }

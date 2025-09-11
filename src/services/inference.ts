@@ -13,7 +13,7 @@ export default class InferenceService implements IInferenceService {
         return n;
     }
 
-    start(): TreeContext { 
+    set(): TreeContext { 
         return { currentId: this.tree.rootId };
     }
 
@@ -32,6 +32,16 @@ export default class InferenceService implements IInferenceService {
         const ans = node.answers.find(a => a.id === ctx.pendingAnswerId);
         if (!ans) throw new AnswerNotFound(`No answer with id: ${ctx.pendingAnswerId}`);
         return { currentId: ans.to };
+    }
+
+    apply(ctx: TreeContext, answerId: AnswerId): TreeContext {
+        return this.confirmAnswer(this.selectAnswer(ctx, answerId));
+    }
+
+    peekNext(ctx: TreeContext, answerId: AnswerId): NodeId {
+        const tmp = this.selectAnswer(ctx, answerId);
+        const confirmed = this.confirmAnswer(tmp);
+        return confirmed.currentId;
     }
 
     isFinished(ctx: TreeContext): boolean {

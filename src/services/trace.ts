@@ -19,19 +19,27 @@ export default class DecitionTrace implements IDecitionTrace {
         this._checkLength();
         return this.history[this.history.length - 1]!;
     }
+
     getHistory(): TreeContext[] {
         return this.history;
     }
+
+    setCurrent(ctx: TreeContext): void {
+        this._checkLength();
+        this.history[this.history.length - 1] = ctx;
+    }
+
     push(ctx: TreeContext): void {
         this.history.push(ctx);
     }
+
     back(): TreeContext {
         if (this.history.length > 1) {
             this.history.pop();
         }
         return this.getCurrent();
-
     }
+
     reset(): TreeContext {
         this._checkLength();
         this.history = [this.history[0]!];

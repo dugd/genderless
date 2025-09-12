@@ -23,8 +23,10 @@ export default class SessionFacade implements ISessionFacade {
 
     apply(answerId: AnswerId) {
         const before = this.trace.getCurrent();
+        const last = this.inf.selectAnswer(before, answerId);
+        this.trace.setCurrent(last);
         const nextId = this.inf.peekNext(before, answerId);
-        const after = this.inf.apply(before, answerId);
+        const after = this.inf.confirmAnswer(last);
         this.trace.push(after);
         this.events.push({ at: Date.now(), from: before.currentId, answerId, to: nextId });
         const node = this.inf.getNode(after.currentId);

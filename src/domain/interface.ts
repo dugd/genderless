@@ -30,6 +30,8 @@ export interface IDecitionTrace {
 
     push(ctx: TreeContext): void
 
+    setCurrent(ctx: TreeContext): void
+
     back(): TreeContext
 
     reset(): TreeContext

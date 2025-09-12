@@ -22,7 +22,7 @@ export interface QuestionNode extends BaseNode {
 export interface ResultNode extends BaseNode {
   type: "result";
   result: string;
-  desc?: string;
+  desc?: string | undefined;
 }
 
 export type TreeNode = QuestionNode | ResultNode;

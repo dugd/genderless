@@ -42,20 +42,20 @@ export interface ITreeStorage {
     save(tree: DecitionTree): Promise<boolean>
 }
 
-export interface ITreeEditService {
-    createTree(firstQuestion: string): NodeId
+export interface ITreeEditor {
+    createTree(firstQuestion: string, label?: string): DecitionTree
 
-    createChildQuestion(parentId: number, answer: string, question: string): { nodeId: NodeId, edgeId: AnswerId }
+    createChildQuestion(parentId: NodeId, answer: string, question: string, label?: string): { nodeId: NodeId, edgeId: AnswerId }
 
-    createChildResult(parentId: number, answer: string, result: string, desc?: string): { nodeId: NodeId, edgeId: AnswerId }
+    createChildResult(parentId: NodeId, answer: string, result: string, desc?: string, label?: string): { nodeId: NodeId, edgeId: AnswerId }
 
-    updateQuestion(nodeId: number, newQuestion: string): void
+    updateQuestion(nodeId: NodeId, newQuestion: string): void
 
-    updateResult(nodeId: number, newResult: string, newDesc?: string): void
+    updateResult(nodeId: NodeId, newResult: string, newDesc?: string): void
 
-    updateAnswerText(nodeId: number, answerId: number, newText: string): void
+    updateAnswerText(nodeId: NodeId, answerId: AnswerId, newText: string): void
 
-    deleteNode(nodeId: number): void
+    deleteNode(nodeId: NodeId): void
 }
 
 export interface ITreeValidator {

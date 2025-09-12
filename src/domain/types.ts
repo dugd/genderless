@@ -7,20 +7,20 @@ export type AnswerEdge = {
   to: NodeId; // id > ref
 };
 
-export interface BaseNode { 
-  id: NodeId; 
-  label: string; 
-  type: "question" | "result"; 
+export interface BaseNode {
+  id: NodeId;
+  label: string;
+  type: 'question' | 'result';
 }
 
 export interface QuestionNode extends BaseNode {
-  type: "question";
+  type: 'question';
   question: string;
   answers: AnswerEdge[];
 }
 
 export interface ResultNode extends BaseNode {
-  type: "result";
+  type: 'result';
   result: string;
   desc?: string | undefined;
 }

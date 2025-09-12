@@ -1,27 +1,13 @@
-export class DomainError extends Error {
+export class DomainError extends Error {}
 
-}
+export class NotFoundError extends DomainError {}
 
-export class NotFoundError extends DomainError {
+export class WrongNodeType extends DomainError {}
 
-}
+export class AnswerNotFound extends NotFoundError {}
 
-export class WrongNodeType extends DomainError {
+export class NodeNotFound extends NotFoundError {}
 
-}
+export class TransitionMissing extends DomainError {}
 
-export class AnswerNotFound extends NotFoundError {
-
-}
-
-export class NodeNotFound extends NotFoundError {
-
-}
-
-export class TransitionMissing extends DomainError {
-
-}
-
-export class ValidateError extends DomainError {
-    
-}
+export class ValidateError extends DomainError {}

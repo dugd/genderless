@@ -1,27 +1,33 @@
-import { AnswerNotFound, NodeNotFound, WrongNodeType } from "../domain/exceptions.js";
-import { isQuestionNode, isResultNode } from "../domain/guards.js";
+import { AnswerNotFound, NodeNotFound, WrongNodeType } from '../domain/exceptions.js';
+import { isQuestionNode, isResultNode } from '../domain/guards.js';
 import { genEdgeId, genNodeId } from '../helpers.js';
-import type { ITreeEditor } from "../domain/interface.js";
+import type { ITreeEditor } from '../domain/interface.js';
 import type {
-  NodeId, AnswerId, DecitionTree,
-  QuestionNode, TreeNode, BaseNode, ResultNode, AnswerEdge
-} from "../domain/types.js";
+  NodeId,
+  AnswerId,
+  DecitionTree,
+  QuestionNode,
+  TreeNode,
+  BaseNode,
+  ResultNode,
+  AnswerEdge,
+} from '../domain/types.js';
 
 export default class TreeEditor implements ITreeEditor {
-  private tree: DecitionTree = { rootId: "NONE", nodes: {} };
+  private tree: DecitionTree = { rootId: 'NONE', nodes: {} };
 
-  private createBase(type: "question" | "result", label?: string): BaseNode {
-    return { id: genNodeId(), label: label ?? "...", type };
+  private createBase(type: 'question' | 'result', label?: string): BaseNode {
+    return { id: genNodeId(), label: label ?? '...', type };
   }
 
   private createQuestion(questionText: string, label?: string): QuestionNode {
-    const base = this.createBase("question", label);
-    return { ...base, type: "question", question: questionText, answers: [] };
+    const base = this.createBase('question', label);
+    return { ...base, type: 'question', question: questionText, answers: [] };
   }
 
   private createResult(resultText: string, desc?: string, label?: string): ResultNode {
-    const base = this.createBase("result", label);
-    return { ...base, type: "result", result: resultText, desc };
+    const base = this.createBase('result', label);
+    return { ...base, type: 'result', result: resultText, desc };
   }
 
   private createAnswer(text: string, toId: NodeId): AnswerEdge {
@@ -30,26 +36,26 @@ export default class TreeEditor implements ITreeEditor {
 
   private getNodeOrThrow(id: NodeId): TreeNode {
     const n = this.tree.nodes[id];
-    if (!n) throw new NodeNotFound("Node not found");
+    if (!n) throw new NodeNotFound('Node not found');
     return n;
   }
 
   private ensureQuestion(n: TreeNode): QuestionNode {
-    if (!isQuestionNode(n)) throw new WrongNodeType("Result node");
+    if (!isQuestionNode(n)) throw new WrongNodeType('Result node');
     return n;
   }
 
   private ensureResult(n: TreeNode): ResultNode {
-    if (!isResultNode(n)) throw new WrongNodeType("Question node");
+    if (!isResultNode(n)) throw new WrongNodeType('Question node');
     return n;
   }
 
-  private findParentEdge(nodeId: NodeId):
-    | { parentId: NodeId; edgeId: AnswerId; parent: QuestionNode }
-    | undefined {
+  private findParentEdge(
+    nodeId: NodeId,
+  ): { parentId: NodeId; edgeId: AnswerId; parent: QuestionNode } | undefined {
     for (const [pid, pnode] of Object.entries(this.tree.nodes)) {
       if (!isQuestionNode(pnode)) continue;
-      const edge = pnode.answers.find(a => a.to === nodeId);
+      const edge = pnode.answers.find((a) => a.to === nodeId);
       if (edge) return { parentId: pid as NodeId, edgeId: edge.id, parent: pnode };
     }
     return undefined;
@@ -85,7 +91,13 @@ export default class TreeEditor implements ITreeEditor {
     return { nodeId: child.id, edgeId: edge.id };
   }
 
-  createChildResult(parentId: NodeId, answer: string, result: string, desc?: string, label?: string) {
+  createChildResult(
+    parentId: NodeId,
+    answer: string,
+    result: string,
+    desc?: string,
+    label?: string,
+  ) {
     const parent = this.ensureQuestion(this.getNodeOrThrow(parentId));
     const child = this.createResult(result, desc, label);
     const edge = this.createAnswer(answer, child.id);
@@ -107,20 +119,20 @@ export default class TreeEditor implements ITreeEditor {
 
   updateAnswerText(nodeId: NodeId, answerId: AnswerId, newText: string): void {
     const node = this.ensureQuestion(this.getNodeOrThrow(nodeId));
-    const ans = node.answers.find(a => a.id === answerId);
-    if (!ans) throw new AnswerNotFound("Answer not found");
+    const ans = node.answers.find((a) => a.id === answerId);
+    if (!ans) throw new AnswerNotFound('Answer not found');
     ans.text = newText;
   }
 
   deleteNode(nodeId: NodeId): void {
-    if (!this.tree.nodes[nodeId]) throw new NodeNotFound("Node not found");
+    if (!this.tree.nodes[nodeId]) throw new NodeNotFound('Node not found');
     if (this.tree.rootId === nodeId) {
-      throw new Error("Cannot delete root node");
+      throw new Error('Cannot delete root node');
     }
 
     const parent = this.findParentEdge(nodeId);
     if (parent) {
-      parent.parent.answers = parent.parent.answers.filter(a => a.to !== nodeId);
+      parent.parent.answers = parent.parent.answers.filter((a) => a.to !== nodeId);
     } else {
       // bad, but nevermind
     }

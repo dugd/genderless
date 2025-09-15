@@ -5,13 +5,12 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 import type { DecitionTree } from './domain/types.js';
-import { csrfProtection, attachSessionId } from './middlewares.js';
 import InferenceService from './services/inference.js';
 import LocalJSONTreeStorage from './services/storage.js';
 import DecitionTrace from './services/trace.js';
 import TreeValidator from './services/validator.js';
 import SessionStore from './session-store.js';
-import { isQuestionNode } from './domain/guards.js';
+import { createSiteRouter } from './routes/site.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,81 +41,7 @@ async function main() {
   const inference = new InferenceService(tree);
   const store = new SessionStore(inference, () => new DecitionTrace(inference.set()));
 
-  app.get('/', csrfProtection, (req, res) => {
-    res.render('index', { csrfToken: req.csrfToken() });
-  });
-
-  app.post('/start', csrfProtection, (req, res) => {
-    const { id } = store.create();
-    res.cookie('sid', id, { httpOnly: true, sameSite: 'lax' });
-    res.redirect('/test');
-  });
-
-  app.get('/test', csrfProtection, attachSessionId, (req, res) => {
-    if (!req.sessionId) return res.redirect('/');
-
-    try {
-      const facade = store.get(req.sessionId);
-      if (!facade) {
-        throw new Error('Cannot find session');
-      }
-      const { ctx, node, finished } = facade.getCurrent();
-
-      if (node.type === 'result') {
-        return res.redirect('/result');
-      }
-      res.render('question', { node, csrfToken: req.csrfToken() });
-    } catch (e: any) {
-      res.status(400).render('error', { message: e.message });
-    }
-  });
-
-  app.post('/answer', csrfProtection, attachSessionId, (req, res) => {
-    if (!req.sessionId) return res.redirect('/');
-
-    const { answerId } = req.body as { answerId?: string };
-    if (!answerId) return res.status(400).render('error', { message: 'Не обрано відповідь' });
-
-    try {
-      const facade = store.get(req.sessionId);
-      if (!facade) {
-        throw new Error('Cannot find session');
-      }
-      const { ctx, node, finished } = facade.apply(answerId);
-      res.redirect(finished ? '/result' : '/test');
-    } catch (e: any) {
-      res.status(400).render('error', { message: e.message });
-    }
-  });
-
-  app.get('/result', csrfProtection, attachSessionId, (req, res) => {
-    if (!req.sessionId) return res.redirect('/');
-
-    try {
-      const facade = store.get(req.sessionId);
-      if (!facade) {
-        throw new Error('Cannot find session');
-      }
-      const { ctx, node, finished } = facade.getCurrent();
-      if (isQuestionNode(node) || !finished) return res.redirect('/test');
-      res.render('result', {
-        result: node,
-        history: facade.getHistory(),
-        csrfToken: req.csrfToken(),
-      });
-    } catch (e: any) {
-      res.status(400).render('error', { message: e.message });
-    }
-  });
-
-  app.post('/restart', csrfProtection, (req, res) => {
-    res.clearCookie('sid');
-    res.redirect('/');
-  });
-
-  app.use((req, res) => {
-    res.status(404).render('error', { message: 'Сторінку не знайдено' });
-  });
+  app.use('/', createSiteRouter(store));
 
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);

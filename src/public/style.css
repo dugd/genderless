@@ -33,6 +33,9 @@ main {
   display: grid;
   place-items: start center;
 }
+.navigate-wrapper {
+  display: flex;
+}
 .card {
   width: min(720px, 100%);
   background: #fff;

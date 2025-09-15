@@ -1,5 +1,5 @@
-import type { IInferenceService, IDecitionTrace, ISessionFacade } from './domain/interface.js';
-import type { AnswerId, TraceEvent, TreeContext } from './domain/types.js';
+import type { IInferenceService, IDecitionTrace, ISessionFacade } from '../domain/interface.js';
+import type { AnswerId, TraceEvent, TreeContext } from '../domain/types.js';
 
 export default class SessionFacade implements ISessionFacade {
   private events: TraceEvent[] = [];

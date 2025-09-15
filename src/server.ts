@@ -3,15 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import csrf from 'csurf';
 
 import type { DecitionTree } from './domain/types.js';
+import { csrfProtection, attachSessionId } from './middlewares.js';
 import InferenceService from './services/inference.js';
 import LocalJSONTreeStorage from './services/storage.js';
 import DecitionTrace from './services/trace.js';
 import TreeValidator from './services/validator.js';
 import SessionStore from './session-store.js';
-import { isQuestionNode, isResultNode } from './domain/guards.js';
+import { isQuestionNode } from './domain/guards.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,15 +38,9 @@ async function main() {
   app.use(cookieParser());
   app.use(helmet({ contentSecurityPolicy: false }));
 
-  const csrfProtection = csrf({ cookie: true });
-
   const tree = await loadTree(FILE_PATH);
   const inference = new InferenceService(tree);
   const store = new SessionStore(inference, () => new DecitionTrace(inference.set()));
-
-  function getSessionId(req: express.Request): string | undefined {
-    return req.cookies['sid'];
-  }
 
   app.get('/', csrfProtection, (req, res) => {
     res.render('index', { csrfToken: req.csrfToken() });
@@ -58,12 +52,11 @@ async function main() {
     res.redirect('/test');
   });
 
-  app.get('/test', csrfProtection, (req, res) => {
-    const sid = getSessionId(req);
-    if (!sid) return res.redirect('/');
+  app.get('/test', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
 
     try {
-      const facade = store.get(sid);
+      const facade = store.get(req.sessionId);
       if (!facade) {
         throw new Error('Cannot find session');
       }
@@ -78,31 +71,29 @@ async function main() {
     }
   });
 
-  app.post('/answer', csrfProtection, (req, res) => {
-    const sid = getSessionId(req);
-    if (!sid) return res.redirect('/');
+  app.post('/answer', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
 
     const { answerId } = req.body as { answerId?: string };
     if (!answerId) return res.status(400).render('error', { message: 'Не обрано відповідь' });
 
     try {
-      const facade = store.get(sid);
+      const facade = store.get(req.sessionId);
       if (!facade) {
         throw new Error('Cannot find session');
       }
       const { ctx, node, finished } = facade.apply(answerId);
-      res.redirect(inference.isFinished(ctx) ? '/result' : '/test');
+      res.redirect(finished ? '/result' : '/test');
     } catch (e: any) {
       res.status(400).render('error', { message: e.message });
     }
   });
 
-  app.get('/result', csrfProtection, (req, res) => {
-    const sid = getSessionId(req);
-    if (!sid) return res.redirect('/');
+  app.get('/result', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
 
     try {
-      const facade = store.get(sid);
+      const facade = store.get(req.sessionId);
       if (!facade) {
         throw new Error('Cannot find session');
       }

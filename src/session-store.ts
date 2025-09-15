@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { IInferenceService, IDecitionTrace } from './domain/interface.js';
-import SessionFacade from './session-facade.js';
+import SessionFacade from './services/facade.js';
 
 export default class SessionStore {
   private readonly sessions = new Map<string, SessionFacade>();

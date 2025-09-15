@@ -1,0 +1,43 @@
+<% const t = (typeof type === 'string' && type === 'result') ? 'result' : 'question'; %>
+<% const content = `
+<section class="new-child">
+  <div>
+    <h1>Новий підвузол для: <a href="/editor/nodes/${encodeURIComponent(parent.id)}">${parent.label || parent.id}</a></h1>
+    <nav style="margin:.5rem 0;">
+      <a href="/editor/nodes/${encodeURIComponent(parent.id)}">← Назад</a>
+      <span style="margin-left:1rem;">Тип: <strong>${t}</strong></span>
+    </nav>
+  </div>
+
+  <form method="post" action="/editor/nodes/${encodeURIComponent(parent.id)}/children">
+    <input type="hidden" name="_csrf" value="${csrfToken}">
+    <input type="hidden" name="type" value="${t}">
+
+    <fieldset style="margin-bottom:1rem;">
+      <legend>Відповідь</legend>
+      <label>Текст<br><input name="answerText" type="text" required></label>
+    </fieldset>
+
+    ${t === 'question' ? `
+      <fieldset>
+        <legend>Питання</legend>
+        <label>Мітка<br><input name="label" type="text"></label><br>
+        <label>Текст<br><textarea name="question" rows="3" required></textarea></label>
+      </fieldset>
+    ` : `
+      <fieldset>
+        <legend>Результат</legend>
+        <label>Метка<br><input name="label" type="text"></label><br>
+        <label>Значення<br><input name="result" type="text" required></label><br>
+        <label>Опис<br><textarea name="desc" rows="3"></textarea></label>
+      </fieldset>
+    `}
+
+    <div style="margin-top:1rem;">
+      <button type="submit">Створити</button>
+      <a href="/editor/nodes/${encodeURIComponent(parent.id)}" style="margin-left:.5rem;">Отмена</a>
+    </div>
+  </form>
+</section>
+`; %>
+<%- include('_layout', { body: content, csrfToken: csrfToken }) %>

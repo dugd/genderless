@@ -48,6 +48,8 @@ export interface ITreeStorage {
 }
 
 export interface ITreeEditor {
+  getTree(): DecitionTree;
+
   createTree(firstQuestion: string, label?: string): DecitionTree;
 
   createChildQuestion(

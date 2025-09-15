@@ -16,6 +16,14 @@ import type {
 export default class TreeEditor implements ITreeEditor {
   private tree: DecitionTree = { rootId: 'NONE', nodes: {} };
 
+  constructor(tree?: DecitionTree) {
+    this.tree = tree ?? this.tree;
+  }
+
+  getTree(): DecitionTree {
+    return this.tree;
+  }
+
   private createBase(type: 'question' | 'result', label?: string): BaseNode {
     return { id: genNodeId(), label: label ?? '...', type };
   }

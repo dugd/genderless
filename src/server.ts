@@ -9,8 +9,10 @@ import InferenceService from './services/inference.js';
 import LocalJSONTreeStorage from './services/storage.js';
 import DecitionTrace from './services/trace.js';
 import TreeValidator from './services/validator.js';
+import TreeEditor from './services/editor.js';
 import SessionStore from './session-store.js';
 import { createSiteRouter } from './routes/site.js';
+import { createEditorRouter } from './routes/editor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,9 +40,13 @@ async function main() {
   app.use(helmet({ contentSecurityPolicy: false }));
 
   const tree = await loadTree(FILE_PATH);
+
+  const editor = new TreeEditor(tree);
+
   const inference = new InferenceService(tree);
   const store = new SessionStore(inference, () => new DecitionTrace(inference.set()));
 
+  app.use('/editor', createEditorRouter(editor));
   app.use('/', createSiteRouter(store));
 
   app.listen(port, () => {

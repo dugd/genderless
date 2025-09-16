@@ -1,11 +1,12 @@
 import { Router } from 'express';
 
 import { csrfProtection } from '../middlewares.js';
-import type TreeEditor from '../services/editor.js';
+import TreeEditor from '../services/editor.js';
 import type { AnswerId, NodeId } from '../domain/types.js';
 import { findParent, listChildren, requireNode } from '../helpers.js';
 import { isQuestionNode } from '../domain/guards.js';
 import { WrongNodeType } from '../domain/exceptions.js';
+import { saveTree } from '../tree-store.js';
 
 export function createEditorRouter(editor: TreeEditor): Router {
   const r = Router();
@@ -50,7 +51,7 @@ export function createEditorRouter(editor: TreeEditor): Router {
     }
   });
 
-  r.post('/nodes/:id/children', csrfProtection, (req, res) => {
+  r.post('/nodes/:id/children', csrfProtection, async (req, res) => {
     try {
       const parentId = req.params.id as NodeId;
       const { answerText, type, question, result, desc } = req.body as {
@@ -66,47 +67,51 @@ export function createEditorRouter(editor: TreeEditor): Router {
       } else {
         out = editor.createChildQuestion(parentId, answerText, String(question ?? '').trim());
       }
+      await saveTree(editor.getTree());
       return res.redirect(`/editor/nodes/${encodeURIComponent(out.nodeId)}`);
     } catch (e) {
       return res.status(400).render('errors/400');
     }
   });
 
-  r.post('/nodes/:id/question', csrfProtection, (req, res) => {
+  r.post('/nodes/:id/question', csrfProtection, async (req, res) => {
     try {
       const id = req.params.id as NodeId;
       const { question } = req.body as { question: string };
       editor.updateQuestion(id, String(question ?? '').trim());
+      await saveTree(editor.getTree());
       res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
     } catch (e) {
       res.status(422).render('errors/422');
     }
   });
 
-  r.post('/nodes/:id/result', csrfProtection, (req, res) => {
+  r.post('/nodes/:id/result', csrfProtection, async (req, res) => {
     try {
       const id = req.params.id as NodeId;
       const { result, desc } = req.body as { result: string; desc?: string };
       editor.updateResult(id, String(result ?? '').trim(), desc);
+      await saveTree(editor.getTree());
       res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
     } catch (e) {
       res.status(422).render('errors/422');
     }
   });
 
-  r.post('/nodes/:id/answers/:answerId', csrfProtection, (req, res) => {
+  r.post('/nodes/:id/answers/:answerId', csrfProtection, async (req, res) => {
     try {
       const id = req.params.id as NodeId;
       const answerId = req.params.answerId as AnswerId;
       const { text } = req.body as { text: string };
       editor.updateAnswerText(id, answerId, String(text ?? '').trim());
+      await saveTree(editor.getTree());
       res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
     } catch (e) {
       res.status(422).render('errors/422');
     }
   });
 
-  r.post('/nodes/:id/delete', csrfProtection, (req, res) => {
+  r.post('/nodes/:id/delete', csrfProtection, async (req, res) => {
     try {
       const id = req.params.id as NodeId;
       const tree = editor.getTree();
@@ -114,6 +119,7 @@ export function createEditorRouter(editor: TreeEditor): Router {
       editor.deleteNode(id);
       if (parent) return res.redirect(`/editor/nodes/${encodeURIComponent(parent.id)}`);
       const { rootId } = tree;
+      await saveTree(tree);
       return res.redirect(`/editor/nodes/${encodeURIComponent(rootId)}`);
     } catch (e) {
       return res.status(422).render('errors/422');

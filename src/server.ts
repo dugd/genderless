@@ -4,29 +4,15 @@ import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
-import type { DecitionTree } from './domain/types.js';
 import InferenceService from './services/inference.js';
-import LocalJSONTreeStorage from './services/storage.js';
 import DecitionTrace from './services/trace.js';
-import TreeValidator from './services/validator.js';
 import TreeEditor from './services/editor.js';
 import SessionStore from './session-store.js';
 import { createSiteRouter } from './routes/site.js';
 import { createEditorRouter } from './routes/editor.js';
+import { loadTree } from './tree-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const FILE_PATH = path.resolve(__dirname, '../assets/tree.json');
-
-async function loadTree(filePath: string): Promise<DecitionTree> {
-  const storage = new LocalJSONTreeStorage(filePath);
-  const tree = await storage.load();
-  if (!tree) {
-    throw new Error('Cannot access tree');
-  }
-  new TreeValidator().validate(tree);
-  return tree;
-}
 
 async function main() {
   const app = express();
@@ -39,7 +25,7 @@ async function main() {
   app.use(cookieParser());
   app.use(helmet({ contentSecurityPolicy: false }));
 
-  const tree = await loadTree(FILE_PATH);
+  const tree = await loadTree();
 
   const editor = new TreeEditor(tree);
 

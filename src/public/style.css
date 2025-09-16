@@ -18,6 +18,10 @@ body {
     "Apple Color Emoji",
     "Segoe UI Emoji";
 }
+ul {
+  list-style-type: none;
+  padding-left: 0;
+}
 header,
 footer {
   background: #f4f4f6;
@@ -32,6 +36,16 @@ main {
   padding: 20px;
   display: grid;
   place-items: start center;
+}
+.buttons-wrap {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+.form-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 .navigate-wrapper {
   display: flex;
@@ -67,7 +81,7 @@ button:hover {
   background: #111827;
   color: #fff;
 }
-nav a {
+a {
   color: #2563eb;
   text-decoration: none;
   margin-right: 10px;

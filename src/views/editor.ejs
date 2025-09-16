@@ -1,64 +1,66 @@
 <% const content = `
-<section class="node-view">
-  <div>
-    <h1>${node.label || node.id} <small>(${node.type})</small></h1>
-    <nav style="margin:.5rem 0;">
-      ${parent ? `<a href="/editor/nodes/${encodeURIComponent(parent.id)}">← До батька</a>` : ``}
-      <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=question" style="margin-left:1rem;">+ Питання</a>
-      <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=result" style="margin-left:.5rem;">+ Результат</a>
-    </nav>
-  </div>
+<section class="card">
+    <section class="node-view">
+    <div>
+        <h1>${node.label || node.id} <small>(${node.type})</small></h1>
+        <nav style="margin:.5rem 0;">
+        ${parent ? `<a href="/editor/nodes/${encodeURIComponent(parent.id)}">← До батька</a>` : ``}
+        <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=question" style="margin-left:1rem;">+ Питання</a>
+        <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=result" style="margin-left:.5rem;">+ Результат</a>
+        </nav>
+    </div>
 
-  ${node.type === 'question' ? `
-    <section class="edit-question">
-      <h2>Питання</h2>
-      <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/question">
-        <input type="hidden" name="_csrf" value="${csrfToken}">
-        <label>Мітка<br><input name="label" type="text" value="${node.label || ''}" /></label><br>
-        <label>Текст питання<br><textarea name="question" rows="3">${node.question || ''}</textarea></label><br>
-        <button type="submit">Зберегти</button>
-      </form>
-    </section>
+    ${node.type === 'question' ? `
+        <section class="edit-question">
+        <h2>Питання</h2>
+        <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/question">
+            <input type="hidden" name="_csrf" value="${csrfToken}">
+            <label>Мітка<br><input class="form-field" name="label" type="text" value="${node.label || ''}" /></label><br>
+            <label>Текст питання<br><textarea class="form-field" name="question" rows="3">${node.question || ''}</textarea></label><br>
+            <button type="submit">Зберегти</button>
+        </form>
+        </section>
 
-    <section class="answers">
-      <h2>Відповіді</h2>
-      ${node.answers.length === 0 ? `<p>Відповідей нема.</p>` : `
-        <ul>
-          ${node.answers.map(a => {
-            const child = (children || []).find(c => c.id === a.to);
-            const toLabel = child && child.label ? child.label : a.to;
-            return `
-              <li style="margin:.5rem 0; padding:.5rem; border:1px solid #ddd;">
-                <div><strong>${a.text}</strong> → <a href="/editor/nodes/${encodeURIComponent(a.to)}">${toLabel}</a>}</div>
-                <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/answers/${encodeURIComponent(a.id)}" style="margin-top:.25rem;">
-                  <input type="hidden" name="_csrf" value="${csrfToken}">
-                  <input name="text" type="text" value="${a.text}" />
-                  <button type="submit">Оновити відповідь</button>
-                </form>
-                ${child ? `
-                  <form method="post" action="/editor/nodes/${encodeURIComponent(child.id)}/delete" style="margin-top:.25rem;" onsubmit="return confirm('Реально видалити? (з підеревом)');">
-                    <input type="hidden" name="_csrf" value="${csrfToken}">
-                    <button type="submit">Видалити вузол</button>
-                  </form>
-                ` : ``}
-              </li>
-            `;
-          }).join('')}
-        </ul>
-      `}
+        <section class="answers">
+        <h2>Відповіді</h2>
+        ${node.answers.length === 0 ? `<p>Відповідей нема.</p>` : `
+            <ul>
+            ${node.answers.map(a => {
+                const child = (children || []).find(c => c.id === a.to);
+                const toLabel = child && child.label ? child.label : a.to;
+                return `
+                <li style="margin:.5rem 0; padding:.5rem; border:1px solid #ddd;">
+                    <div><strong>${a.text}</strong> → <a href="/editor/nodes/${encodeURIComponent(a.to)}">${toLabel}</a></div>
+                    <form style="display:flex;gap:0.5rem;" method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/answers/${encodeURIComponent(a.id)}" style="margin-top:.25rem;">
+                        <input type="hidden" name="_csrf" value="${csrfToken}">
+                        <input style="flex:1;" name="text" type="text" value="${a.text}" />
+                        <button type="submit">Оновити відповідь</button>
+                    </form>
+                    ${child ? `
+                    <form method="post" action="/editor/nodes/${encodeURIComponent(child.id)}/delete" style="margin-top:.25rem;" onsubmit="return confirm('Реально видалити? (з підеревом)');">
+                        <input type="hidden" name="_csrf" value="${csrfToken}">
+                        <button type="submit">Видалити вузол</button>
+                    </form>
+                    ` : ``}
+                </li>
+                `;
+            }).join('')}
+            </ul>
+        `}
+        </section>
+    ` : `
+        <section class="edit-result">
+        <h2>Результат</h2>
+        <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/result">
+            <input type="hidden" name="_csrf" value="${csrfToken}">
+            <label>Мітка<br><input class="form-field" name="label" type="text" value="${node.label || ''}" /></label><br>
+            <label>Значення<br><input class="form-field" name="result" type="text" value="${node.result || ''}" /></label><br>
+            <label>Опис<br><textarea class="form-field" name="desc" rows="3">${node.desc || ''}</textarea></label><br>
+            <button type="submit">Збереги</button>
+        </form>
+        </section>
+    `}
     </section>
-  ` : `
-    <section class="edit-result">
-      <h2>Результат</h2>
-      <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/result">
-        <input type="hidden" name="_csrf" value="${csrfToken}">
-        <label>Мітка<br><input name="label" type="text" value="${node.label || ''}" /></label><br>
-        <label>Значення<br><input name="result" type="text" value="${node.result || ''}" /></label><br>
-        <label>Опис<br><textarea name="desc" rows="3">${node.desc || ''}</textarea></label><br>
-        <button type="submit">Збереги</button>
-      </form>
-    </section>
-  `}
 </section>
 `; %>
 <%- include('_layout', { body: content, csrfToken: csrfToken }) %>

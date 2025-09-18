@@ -1,0 +1,1274 @@
+// Объединено 26 файлов
+// Thu Sep 18 2025 10:42:32 GMT+0300 (Eastern European Summer Time)
+
+
+==================================================
+// src\config.ts
+==================================================
+
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env' });
+
+export const FILE_PATH: string = process.env.FILE_PATH ?? './assets/tree.json';
+
+
+==================================================
+// src\domain\exceptions.ts
+==================================================
+
+export class DomainError extends Error {}
+
+export class NotFoundError extends DomainError {}
+
+export class WrongNodeType extends DomainError {}
+
+export class AnswerNotFound extends NotFoundError {}
+
+export class NodeNotFound extends NotFoundError {}
+
+export class TransitionMissing extends DomainError {}
+
+export class ValidateError extends DomainError {}
+
+
+==================================================
+// src\domain\guards.ts
+==================================================
+
+import type { TreeNode, QuestionNode, ResultNode } from './types.js';
+
+export function isQuestionNode(node: TreeNode): node is QuestionNode {
+  return node.type === 'question';
+}
+
+export function isResultNode(node: TreeNode): node is ResultNode {
+  return node.type === 'result';
+}
+
+
+==================================================
+// src\domain\interface.ts
+==================================================
+
+import type {
+  DecitionTree,
+  TreeContext,
+  QuestionNode,
+  AnswerEdge,
+  ResultNode,
+  AnswerId,
+  TreeNode,
+  NodeId,
+  TraceEvent,
+} from './types.js';
+
+export interface IInferenceService {
+  getNode(id: NodeId): TreeNode;
+
+  set(): TreeContext;
+
+  selectAnswer(ctx: TreeContext, answerId: AnswerId): TreeContext;
+
+  confirmAnswer(ctx: TreeContext): TreeContext;
+
+  apply(ctx: TreeContext, answerId: AnswerId): TreeContext;
+
+  peekNext(ctx: TreeContext, answerId: AnswerId): NodeId;
+
+  isFinished(ctx: TreeContext): boolean;
+
+  getResult(ctx: TreeContext): ResultNode | undefined;
+}
+
+export interface IDecitionTrace {
+  getCurrent(): TreeContext;
+
+  getHistory(): TreeContext[];
+
+  push(ctx: TreeContext): void;
+
+  setCurrent(ctx: TreeContext): void;
+
+  back(): TreeContext;
+
+  reset(): TreeContext;
+}
+
+export interface ITreeStorage {
+  load(): Promise<DecitionTree | null>;
+  save(tree: DecitionTree): Promise<boolean>;
+}
+
+export interface ITreeEditor {
+  getTree(): DecitionTree;
+
+  createTree(firstQuestion: string, label?: string): DecitionTree;
+
+  createChildQuestion(
+    parentId: NodeId,
+    answer: string,
+    question: string,
+    label?: string,
+  ): { nodeId: NodeId; edgeId: AnswerId };
+
+  createChildResult(
+    parentId: NodeId,
+    answer: string,
+    result: string,
+    desc?: string,
+    label?: string,
+  ): { nodeId: NodeId; edgeId: AnswerId };
+
+  updateQuestion(nodeId: NodeId, newQuestion: string): void;
+
+  updateResult(nodeId: NodeId, newResult: string, newDesc?: string): void;
+
+  updateAnswerText(nodeId: NodeId, answerId: AnswerId, newText: string): void;
+
+  deleteNode(nodeId: NodeId): void;
+}
+
+export interface ITreeValidator {
+  validate(tree: DecitionTree): boolean;
+}
+
+export interface ISessionFacade {
+  getCurrent(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+  apply(answerId: AnswerId): {
+    ctx: TreeContext;
+    node: TreeNode;
+    finished: boolean;
+  };
+  back(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+  reset(): { ctx: TreeContext; node: TreeNode; finished: boolean };
+  getResult(): ResultNode | undefined;
+  getHistory(): TreeContext[];
+}
+
+
+==================================================
+// src\domain\types.ts
+==================================================
+
+export type NodeId = string; // easy to change
+export type AnswerId = string;
+
+export type AnswerEdge = {
+  id: AnswerId;
+  text: string;
+  to: NodeId; // id > ref
+};
+
+export interface BaseNode {
+  id: NodeId;
+  label: string;
+  type: 'question' | 'result';
+}
+
+export interface QuestionNode extends BaseNode {
+  type: 'question';
+  question: string;
+  answers: AnswerEdge[];
+}
+
+export interface ResultNode extends BaseNode {
+  type: 'result';
+  result: string;
+  desc?: string | undefined;
+}
+
+export type TreeNode = QuestionNode | ResultNode;
+
+export interface DecitionTree {
+  rootId: NodeId;
+  nodes: Record<NodeId, TreeNode>;
+}
+
+export interface TreeContext {
+  currentId: NodeId;
+  pendingAnswerId?: AnswerId;
+}
+
+export interface TraceEvent {
+  at: number;
+  from: NodeId;
+  answerId?: AnswerId;
+  to: NodeId;
+}
+
+
+==================================================
+// src\helpers.ts
+==================================================
+
+import { NodeNotFound } from './domain/exceptions.js';
+import { isQuestionNode } from './domain/guards.js';
+import type { AnswerId, DecitionTree, NodeId, QuestionNode, TreeNode } from './domain/types.js';
+import { v4 as uuidv4 } from 'uuid';
+
+export function genId(): string {
+  return uuidv4();
+}
+export function genNodeId(): NodeId {
+  return ('n_' + genId()) as NodeId;
+}
+export function genEdgeId(): AnswerId {
+  return ('a_' + genId()) as AnswerId;
+}
+
+export function getNode(tree: DecitionTree, id: NodeId): TreeNode | undefined {
+  return tree.nodes[id];
+}
+
+export function requireNode(tree: DecitionTree, id: NodeId): TreeNode {
+  const n = getNode(tree, id);
+  if (!n) throw new NodeNotFound('Node not found');
+  return n;
+}
+
+export function findParent(tree: DecitionTree, nodeId: NodeId): QuestionNode | undefined {
+  if (tree.rootId === nodeId) return undefined;
+  const { nodes } = tree;
+  for (const [pid, pnode] of Object.entries(nodes)) {
+    if (!isQuestionNode(pnode)) continue;
+    const edge = pnode.answers.find((a) => a.to === nodeId);
+    if (edge) return pnode as QuestionNode;
+  }
+  return undefined;
+}
+
+export function listChildren(tree: DecitionTree, nodeId: NodeId): TreeNode[] {
+  const n = getNode(tree, nodeId);
+  if (!n || !isQuestionNode(n)) return [];
+  return n.answers.map((a) => requireNode(tree, a.to));
+}
+
+
+==================================================
+// src\middlewares.ts
+==================================================
+
+import csrf from 'csurf';
+import type { Request, Response, NextFunction } from 'express';
+
+export const csrfProtection = csrf({ cookie: true });
+
+export function attachSessionId(req: Request, res: Response, next: NextFunction): void {
+  req.sessionId = req.cookies['sid'];
+  next();
+}
+
+
+==================================================
+// src\routes\editor.ts
+==================================================
+
+import { Router } from 'express';
+
+import { csrfProtection } from '../middlewares.js';
+import TreeEditor from '../services/editor.js';
+import type { AnswerId, NodeId } from '../domain/types.js';
+import { findParent, listChildren, requireNode } from '../helpers.js';
+import { isQuestionNode } from '../domain/guards.js';
+import { WrongNodeType } from '../domain/exceptions.js';
+import { saveTree } from '../tree-store.js';
+
+export function createEditorRouter(editor: TreeEditor): Router {
+  const r = Router();
+
+  r.get('/', csrfProtection, (req, res) => {
+    const { rootId } = editor.getTree();
+    if (!rootId || rootId === 'NONE') return res.status(404).send('Tree is empty');
+    res.redirect(`/editor/nodes/${encodeURIComponent(rootId)}`);
+  });
+
+  r.get('/nodes/:id', csrfProtection, (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const tree = editor.getTree();
+      const node = requireNode(tree, id);
+      const parentLink = findParent(tree, id);
+      const children = listChildren(tree, id);
+      const isRoot = tree.rootId === id;
+
+      res.render('editor', {
+        node,
+        isRoot,
+        parent: parentLink,
+        children: children,
+        csrfToken: req.csrfToken(),
+      });
+    } catch (e) {
+      res.status(404).render('errors/404');
+    }
+  });
+
+  r.get('/nodes/:id/new', csrfProtection, (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const type = (req.query.type as string) === 'result' ? 'result' : 'question';
+      const tree = editor.getTree();
+      const parent = requireNode(tree, id);
+      if (!isQuestionNode(parent)) throw new WrongNodeType('Question required');
+      res.render('new-node', { parent, type, csrfToken: req.csrfToken() });
+    } catch (e) {
+      res.status(422).render('errors/422');
+    }
+  });
+
+  r.post('/nodes/:id/children', csrfProtection, async (req, res) => {
+    try {
+      const parentId = req.params.id as NodeId;
+      const { answerText, type, question, result, desc } = req.body as {
+        answerText: string;
+        type: 'question' | 'result';
+        question?: string;
+        result?: string;
+        desc?: string;
+      };
+      let out: { nodeId: string; edgeId: string };
+      if (type === 'result') {
+        out = editor.createChildResult(parentId, answerText, String(result ?? '').trim(), desc);
+      } else {
+        out = editor.createChildQuestion(parentId, answerText, String(question ?? '').trim());
+      }
+      await saveTree(editor.getTree());
+      return res.redirect(`/editor/nodes/${encodeURIComponent(out.nodeId)}`);
+    } catch (e) {
+      return res.status(400).render('errors/400');
+    }
+  });
+
+  r.post('/nodes/:id/question', csrfProtection, async (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const { question } = req.body as { question: string };
+      editor.updateQuestion(id, String(question ?? '').trim());
+      await saveTree(editor.getTree());
+      res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
+    } catch (e) {
+      res.status(422).render('errors/422');
+    }
+  });
+
+  r.post('/nodes/:id/result', csrfProtection, async (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const { result, desc } = req.body as { result: string; desc?: string };
+      editor.updateResult(id, String(result ?? '').trim(), desc);
+      await saveTree(editor.getTree());
+      res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
+    } catch (e) {
+      res.status(422).render('errors/422');
+    }
+  });
+
+  r.post('/nodes/:id/answers/:answerId', csrfProtection, async (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const answerId = req.params.answerId as AnswerId;
+      const { text } = req.body as { text: string };
+      editor.updateAnswerText(id, answerId, String(text ?? '').trim());
+      await saveTree(editor.getTree());
+      res.redirect(`/editor/nodes/${encodeURIComponent(id)}`);
+    } catch (e) {
+      res.status(422).render('errors/422');
+    }
+  });
+
+  r.post('/nodes/:id/delete', csrfProtection, async (req, res) => {
+    try {
+      const id = req.params.id as NodeId;
+      const tree = editor.getTree();
+      const parent = findParent(tree, id);
+      editor.deleteNode(id);
+      if (parent) return res.redirect(`/editor/nodes/${encodeURIComponent(parent.id)}`);
+      const { rootId } = tree;
+      await saveTree(tree);
+      return res.redirect(`/editor/nodes/${encodeURIComponent(rootId)}`);
+    } catch (e) {
+      return res.status(422).render('errors/422');
+    }
+  });
+
+  return r;
+}
+
+
+==================================================
+// src\routes\site.ts
+==================================================
+
+import { Router } from 'express';
+
+import { csrfProtection, attachSessionId } from '../middlewares.js';
+import { isQuestionNode } from '../domain/guards.js';
+import type SessionStore from '../session-store.js';
+
+export function createSiteRouter(store: SessionStore): Router {
+  const r = Router();
+
+  r.get('/', csrfProtection, (req, res) => {
+    res.render('index', { csrfToken: req.csrfToken() });
+  });
+
+  r.post('/start', csrfProtection, (req, res) => {
+    const { id } = store.create();
+    res.cookie('sid', id, { httpOnly: true, sameSite: 'lax' });
+    res.redirect('/test');
+  });
+
+  r.get('/test', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
+
+    try {
+      const facade = store.get(req.sessionId);
+      if (!facade) {
+        throw new Error('Cannot find session');
+      }
+      const { ctx, node, finished } = facade.getCurrent();
+
+      if (node.type === 'result') {
+        return res.redirect('/result');
+      }
+      res.render('question', { node, csrfToken: req.csrfToken() });
+    } catch (e: any) {
+      res.status(400).render('error', { message: e.message });
+    }
+  });
+
+  r.post('/answer', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
+
+    const { answerId } = req.body as { answerId?: string };
+    if (!answerId) return res.status(400).render('error', { message: 'Не обрано відповідь' });
+
+    try {
+      const facade = store.get(req.sessionId);
+      if (!facade) {
+        throw new Error('Cannot find session');
+      }
+      const { ctx, node, finished } = facade.apply(answerId);
+      res.redirect(finished ? '/result' : '/test');
+    } catch (e: any) {
+      res.status(400).render('error', { message: e.message });
+    }
+  });
+
+  r.get('/result', csrfProtection, attachSessionId, (req, res) => {
+    if (!req.sessionId) return res.redirect('/');
+
+    try {
+      const facade = store.get(req.sessionId);
+      if (!facade) {
+        throw new Error('Cannot find session');
+      }
+      const { ctx, node, finished } = facade.getCurrent();
+      if (isQuestionNode(node) || !finished) return res.redirect('/test');
+      res.render('result', {
+        result: node,
+        history: facade.getHistory(),
+        csrfToken: req.csrfToken(),
+      });
+    } catch (e: any) {
+      res.status(400).render('error', { message: e.message });
+    }
+  });
+
+  r.post('/restart', csrfProtection, (req, res) => {
+    res.clearCookie('sid');
+    res.redirect('/');
+  });
+
+  r.use((req, res) => {
+    res.status(404).render('error', { message: 'Сторінку не знайдено' });
+  });
+
+  return r;
+}
+
+
+==================================================
+// src\server.ts
+==================================================
+
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+
+import InferenceService from './services/inference.js';
+import DecitionTrace from './services/trace.js';
+import TreeEditor from './services/editor.js';
+import SessionStore from './session-store.js';
+import { createSiteRouter } from './routes/site.js';
+import { createEditorRouter } from './routes/editor.js';
+import { loadTree } from './tree-store.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+async function main() {
+  const app = express();
+  const port = process.env.PORT ? Number(process.env.PORT) : 8000;
+
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(__dirname, 'views'));
+  app.use('/static', express.static(path.join(__dirname, 'public')));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(cookieParser());
+  app.use(helmet({ contentSecurityPolicy: false }));
+
+  const tree = await loadTree();
+
+  const editor = new TreeEditor(tree);
+
+  const inference = new InferenceService(tree);
+  const store = new SessionStore(inference, () => new DecitionTrace(inference.set()));
+
+  app.use('/editor', createEditorRouter(editor));
+  app.use('/', createSiteRouter(store));
+
+  app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+  });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
+
+==================================================
+// src\services\editor.ts
+==================================================
+
+import { AnswerNotFound, NodeNotFound, WrongNodeType } from '../domain/exceptions.js';
+import { isQuestionNode, isResultNode } from '../domain/guards.js';
+import { genEdgeId, genNodeId } from '../helpers.js';
+import type { ITreeEditor } from '../domain/interface.js';
+import type {
+  NodeId,
+  AnswerId,
+  DecitionTree,
+  QuestionNode,
+  TreeNode,
+  BaseNode,
+  ResultNode,
+  AnswerEdge,
+} from '../domain/types.js';
+
+export default class TreeEditor implements ITreeEditor {
+  private tree: DecitionTree = { rootId: 'NONE', nodes: {} };
+
+  constructor(tree?: DecitionTree) {
+    this.tree = tree ?? this.tree;
+  }
+
+  getTree(): DecitionTree {
+    return this.tree;
+  }
+
+  private createBase(type: 'question' | 'result', label?: string): BaseNode {
+    return { id: genNodeId(), label: label ?? '...', type };
+  }
+
+  private createQuestion(questionText: string, label?: string): QuestionNode {
+    const base = this.createBase('question', label);
+    return { ...base, type: 'question', question: questionText, answers: [] };
+  }
+
+  private createResult(resultText: string, desc?: string, label?: string): ResultNode {
+    const base = this.createBase('result', label);
+    return { ...base, type: 'result', result: resultText, desc };
+  }
+
+  private createAnswer(text: string, toId: NodeId): AnswerEdge {
+    return { id: genEdgeId(), text, to: toId };
+  }
+
+  private getNodeOrThrow(id: NodeId): TreeNode {
+    const n = this.tree.nodes[id];
+    if (!n) throw new NodeNotFound('Node not found');
+    return n;
+  }
+
+  private ensureQuestion(n: TreeNode): QuestionNode {
+    if (!isQuestionNode(n)) throw new WrongNodeType('Result node');
+    return n;
+  }
+
+  private ensureResult(n: TreeNode): ResultNode {
+    if (!isResultNode(n)) throw new WrongNodeType('Question node');
+    return n;
+  }
+
+  private findParentEdge(
+    nodeId: NodeId,
+  ): { parentId: NodeId; edgeId: AnswerId; parent: QuestionNode } | undefined {
+    for (const [pid, pnode] of Object.entries(this.tree.nodes)) {
+      if (!isQuestionNode(pnode)) continue;
+      const edge = pnode.answers.find((a) => a.to === nodeId);
+      if (edge) return { parentId: pid as NodeId, edgeId: edge.id, parent: pnode };
+    }
+    return undefined;
+  }
+
+  private collectSubtree(rootId: NodeId): Set<NodeId> {
+    const seen = new Set<NodeId>();
+    const stack: NodeId[] = [rootId];
+    while (stack.length) {
+      const id = stack.pop() as NodeId;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const n = this.getNodeOrThrow(id);
+      if (isQuestionNode(n)) {
+        for (const a of n.answers) stack.push(a.to);
+      }
+    }
+    return seen;
+  }
+
+  createTree(firstQuestion: string, label?: string): DecitionTree {
+    const root = this.createQuestion(firstQuestion, label);
+    this.tree = { rootId: root.id, nodes: { [root.id]: root } };
+    return this.tree;
+  }
+
+  createChildQuestion(parentId: NodeId, answer: string, question: string, label?: string) {
+    const parent = this.ensureQuestion(this.getNodeOrThrow(parentId));
+    const child = this.createQuestion(question, label);
+    const edge = this.createAnswer(answer, child.id);
+    parent.answers.push(edge);
+    this.tree.nodes[child.id] = child;
+    return { nodeId: child.id, edgeId: edge.id };
+  }
+
+  createChildResult(
+    parentId: NodeId,
+    answer: string,
+    result: string,
+    desc?: string,
+    label?: string,
+  ) {
+    const parent = this.ensureQuestion(this.getNodeOrThrow(parentId));
+    const child = this.createResult(result, desc, label);
+    const edge = this.createAnswer(answer, child.id);
+    parent.answers.push(edge);
+    this.tree.nodes[child.id] = child;
+    return { nodeId: child.id, edgeId: edge.id };
+  }
+
+  updateQuestion(nodeId: NodeId, newQuestion: string): void {
+    const node = this.ensureQuestion(this.getNodeOrThrow(nodeId));
+    node.question = newQuestion;
+  }
+
+  updateResult(nodeId: NodeId, newResult: string, newDesc?: string): void {
+    const node = this.ensureResult(this.getNodeOrThrow(nodeId));
+    node.result = newResult;
+    node.desc = newDesc;
+  }
+
+  updateAnswerText(nodeId: NodeId, answerId: AnswerId, newText: string): void {
+    const node = this.ensureQuestion(this.getNodeOrThrow(nodeId));
+    const ans = node.answers.find((a) => a.id === answerId);
+    if (!ans) throw new AnswerNotFound('Answer not found');
+    ans.text = newText;
+  }
+
+  deleteNode(nodeId: NodeId): void {
+    if (!this.tree.nodes[nodeId]) throw new NodeNotFound('Node not found');
+    if (this.tree.rootId === nodeId) {
+      throw new Error('Cannot delete root node');
+    }
+
+    const parent = this.findParentEdge(nodeId);
+    if (parent) {
+      parent.parent.answers = parent.parent.answers.filter((a) => a.to !== nodeId);
+    } else {
+      // bad, but nevermind
+    }
+
+    const toDrop = this.collectSubtree(nodeId);
+    for (const id of toDrop) {
+      delete this.tree.nodes[id];
+    }
+  }
+}
+
+
+==================================================
+// src\services\facade.ts
+==================================================
+
+import type { IInferenceService, IDecitionTrace, ISessionFacade } from '../domain/interface.js';
+import type { AnswerId, TraceEvent, TreeContext } from '../domain/types.js';
+
+export default class SessionFacade implements ISessionFacade {
+  private events: TraceEvent[] = [];
+
+  constructor(
+    private readonly inf: IInferenceService,
+    private readonly trace: IDecitionTrace,
+  ) {}
+  getCurrent() {
+    const ctx = this.trace.getCurrent();
+    const node = this.inf.getNode(ctx.currentId);
+    return { ctx, node, finished: this.inf.isFinished(ctx) };
+  }
+
+  apply(answerId: AnswerId) {
+    const before = this.trace.getCurrent();
+    const last = this.inf.selectAnswer(before, answerId);
+    this.trace.setCurrent(last);
+    const nextId = this.inf.peekNext(before, answerId);
+    const after = this.inf.confirmAnswer(last);
+    this.trace.push(after);
+    this.events.push({
+      at: Date.now(),
+      from: before.currentId,
+      answerId,
+      to: nextId,
+    });
+    const node = this.inf.getNode(after.currentId);
+    return { ctx: after, node, finished: this.inf.isFinished(after) };
+  }
+
+  back() {
+    const from = this.trace.getCurrent();
+    const toCtx = this.trace.back();
+    this.events.push({
+      at: Date.now(),
+      from: from.currentId,
+      to: toCtx.currentId,
+    });
+    const node = this.inf.getNode(toCtx.currentId);
+    return { ctx: toCtx, node, finished: this.inf.isFinished(toCtx) };
+  }
+
+  reset() {
+    const ctx = this.trace.reset();
+    this.events.push({
+      at: Date.now(),
+      from: 'RESET' as any,
+      to: ctx.currentId,
+    });
+    const node = this.inf.getNode(ctx.currentId);
+    return { ctx, node, finished: this.inf.isFinished(ctx) };
+  }
+
+  getResult() {
+    return this.inf.getResult(this.trace.getCurrent());
+  }
+
+  getHistory(): TreeContext[] {
+    return this.trace.getHistory();
+  }
+}
+
+
+==================================================
+// src\services\inference.ts
+==================================================
+
+import type { IInferenceService } from '../domain/interface.js';
+import type {
+  AnswerEdge,
+  AnswerId,
+  DecitionTree,
+  NodeId,
+  ResultNode,
+  TreeContext,
+  TreeNode,
+} from '../domain/types.js';
+import { AnswerNotFound, NodeNotFound, WrongNodeType } from '../domain/exceptions.js';
+import { isQuestionNode, isResultNode } from '../domain/guards.js';
+
+export default class InferenceService implements IInferenceService {
+  constructor(private tree: DecitionTree) {}
+
+  getNode(id: NodeId): TreeNode {
+    const n = this.tree.nodes[id];
+    if (!n) throw new NodeNotFound(`Unknown node ${id}`);
+    return n;
+  }
+
+  set(): TreeContext {
+    return { currentId: this.tree.rootId };
+  }
+
+  selectAnswer(ctx: TreeContext, answerId: AnswerId): TreeContext {
+    const node = this.getNode(ctx.currentId);
+    if (!isQuestionNode(node)) throw new WrongNodeType('Cannot select answer on result');
+    const found = node.answers.find((a) => a.id === answerId);
+    if (!found) throw new AnswerNotFound();
+    return { ...ctx, pendingAnswerId: answerId };
+  }
+
+  confirmAnswer(ctx: TreeContext): TreeContext {
+    if (!ctx.pendingAnswerId) throw new AnswerNotFound('No pending answer');
+    const node = this.getNode(ctx.currentId);
+    if (!isQuestionNode(node)) throw new WrongNodeType('Cannot confirm on result');
+    const ans = node.answers.find((a) => a.id === ctx.pendingAnswerId);
+    if (!ans) throw new AnswerNotFound(`No answer with id: ${ctx.pendingAnswerId}`);
+    return { currentId: ans.to };
+  }
+
+  apply(ctx: TreeContext, answerId: AnswerId): TreeContext {
+    return this.confirmAnswer(this.selectAnswer(ctx, answerId));
+  }
+
+  peekNext(ctx: TreeContext, answerId: AnswerId): NodeId {
+    const tmp = this.selectAnswer(ctx, answerId);
+    const confirmed = this.confirmAnswer(tmp);
+    return confirmed.currentId;
+  }
+
+  isFinished(ctx: TreeContext): boolean {
+    return isResultNode(this.getNode(ctx.currentId));
+  }
+
+  getResult(ctx: TreeContext): ResultNode | undefined {
+    const n = this.getNode(ctx.currentId);
+    return isResultNode(n) ? n : undefined;
+  }
+}
+
+
+==================================================
+// src\services\storage.ts
+==================================================
+
+import type { ITreeStorage } from '../domain/interface.js';
+import type { DecitionTree } from '../domain/types.js';
+
+import fs from 'fs/promises';
+
+export default class LocalJSONTreeStorage implements ITreeStorage {
+  constructor(private filePath: string) {}
+
+  async load(): Promise<DecitionTree | null> {
+    try {
+      const raw = await fs.readFile(this.filePath, { encoding: 'utf-8' });
+      return JSON.parse(raw) as DecitionTree;
+    } catch (e) {
+      console.error('Error: load from file');
+      return null;
+    }
+  }
+  async save(tree: DecitionTree): Promise<boolean> {
+    try {
+      const tmp = this.filePath + '.tmp'; // no rewrite
+      await fs.writeFile(tmp, JSON.stringify(tree), { encoding: 'utf-8' });
+      await fs.rename(tmp, this.filePath);
+      return true;
+    } catch (e) {
+      console.error('Error: saving to file');
+      return false;
+    }
+  }
+}
+
+
+==================================================
+// src\services\trace.ts
+==================================================
+
+import type { IDecitionTrace } from '../domain/interface.js';
+import type { TreeContext } from '../domain/types.js';
+
+export default class DecitionTrace implements IDecitionTrace {
+  private history: TreeContext[] = [];
+
+  constructor(start: TreeContext) {
+    this.history = [start];
+  }
+
+  _checkLength(): boolean {
+    if (this.history.length == 0) {
+      throw new Error('History is empty');
+    }
+    return true;
+  }
+
+  getCurrent(): TreeContext {
+    this._checkLength();
+    return this.history[this.history.length - 1]!;
+  }
+
+  getHistory(): TreeContext[] {
+    return this.history;
+  }
+
+  setCurrent(ctx: TreeContext): void {
+    this._checkLength();
+    this.history[this.history.length - 1] = ctx;
+  }
+
+  push(ctx: TreeContext): void {
+    this.history.push(ctx);
+  }
+
+  back(): TreeContext {
+    if (this.history.length > 1) {
+      this.history.pop();
+    }
+    return this.getCurrent();
+  }
+
+  reset(): TreeContext {
+    this._checkLength();
+    this.history = [this.history[0]!];
+    return this.getCurrent();
+  }
+}
+
+
+==================================================
+// src\services\validator.ts
+==================================================
+
+import { ValidateError } from '../domain/exceptions.js';
+import { isQuestionNode } from '../domain/guards.js';
+import type { ITreeValidator } from '../domain/interface.js';
+import type { DecitionTree } from '../domain/types.js';
+
+export default class TreeValidator implements ITreeValidator {
+  validate(tree: DecitionTree): boolean {
+    const rootId = tree.rootId;
+    if (!tree.nodes[rootId]) {
+      throw new ValidateError('rootId not in nodes');
+    }
+
+    for (const [k, n] of Object.entries(tree.nodes)) {
+      if (isQuestionNode(n)) {
+        if (n.answers.length == 0) {
+          throw new ValidateError('QuestionNode without answers');
+        }
+        for (const a of n.answers) {
+          if (!tree.nodes[a.to]) {
+            throw new ValidateError(`Edge to uknown node: ${n.id} -> ${a.to}`);
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+}
+
+
+==================================================
+// src\session-store.ts
+==================================================
+
+import crypto from 'node:crypto';
+import type { IInferenceService, IDecitionTrace } from './domain/interface.js';
+import SessionFacade from './services/facade.js';
+
+export default class SessionStore {
+  private readonly sessions = new Map<string, SessionFacade>();
+
+  constructor(
+    private readonly inf: IInferenceService,
+    private readonly traceFactory: () => IDecitionTrace,
+  ) {}
+
+  create(): { id: string; facade: SessionFacade } {
+    const id = crypto.randomBytes(16).toString('hex');
+    const trace = this.traceFactory();
+    const facade = new SessionFacade(this.inf, trace);
+    this.sessions.set(id, facade);
+    return { id, facade };
+  }
+
+  get(id: string): SessionFacade | undefined {
+    return this.sessions.get(id);
+  }
+
+  delete(id: string): void {
+    this.sessions.delete(id);
+  }
+
+  clear(): void {
+    this.sessions.clear();
+  }
+}
+
+
+==================================================
+// src\tree-store.ts
+==================================================
+
+import LocalJSONTreeStorage from './services/storage.js';
+import TreeValidator from './services/validator.js';
+import type { DecitionTree } from './domain/types.js';
+import { FILE_PATH } from './config.js';
+
+export async function loadTree(): Promise<DecitionTree> {
+  const storage = new LocalJSONTreeStorage(FILE_PATH);
+  const tree = await storage.load();
+  if (!tree) {
+    throw new Error('Cannot access tree');
+  }
+  new TreeValidator().validate(tree);
+  return tree;
+}
+
+export async function saveTree(tree: DecitionTree): Promise<void> {
+  const storage = new LocalJSONTreeStorage(FILE_PATH);
+  const result = await storage.save(tree);
+}
+
+
+==================================================
+// src\types\express.d.ts
+==================================================
+
+import 'express-serve-static-core';
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    sessionId?: string;
+  }
+}
+
+
+==================================================
+// src\views\_layout.ejs
+==================================================
+
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= locals.title ?? "Genderless" %></title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>Визначення твого гендеру</h1>
+      <div class="navigate-wrapper">
+        <nav><a href="/">Головна</a></nav>
+        <nav><a href="/editor">Редактор</a></nav>
+        <nav><a href="http://localhost:3000" target="_blank">Документація</a></nav>
+      </div>
+    </header>
+    <main>
+      <%- body %>
+    </main>
+    <footer>
+      <form method="post" action="/restart">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit">Почати заново</button>
+      </form>
+      <p>© Demo</p>
+    </footer>
+  </body>
+</html>
+
+==================================================
+// src\views\editor.ejs
+==================================================
+
+<% const content = `
+<section class="card">
+    <section class="node-view">
+    <div>
+        <h1>${node.label || node.id} <small>(${node.type})</small></h1>
+        <nav style="margin:.5rem 0;">
+        ${parent ? `<a href="/editor/nodes/${encodeURIComponent(parent.id)}">← До батька</a>` : ``}
+        <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=question" style="margin-left:1rem;">+ Питання</a>
+        <a href="/editor/nodes/${encodeURIComponent(node.id)}/new?type=result" style="margin-left:.5rem;">+ Результат</a>
+        </nav>
+    </div>
+
+    ${node.type === 'question' ? `
+        <section class="edit-question">
+        <h2>Питання</h2>
+        <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/question">
+            <input type="hidden" name="_csrf" value="${csrfToken}">
+            <label>Мітка<br><input class="form-field" name="label" type="text" value="${node.label || ''}" /></label><br>
+            <label>Текст питання<br><textarea class="form-field" name="question" rows="3">${node.question || ''}</textarea></label><br>
+            <button type="submit">Зберегти</button>
+        </form>
+        </section>
+
+        <section class="answers">
+        <h2>Відповіді</h2>
+        ${node.answers.length === 0 ? `<p>Відповідей нема.</p>` : `
+            <ul>
+            ${node.answers.map(a => {
+                const child = (children || []).find(c => c.id === a.to);
+                const toLabel = child && child.label ? child.label : a.to;
+                return `
+                <li style="margin:.5rem 0; padding:.5rem; border:1px solid #ddd;">
+                    <div><strong>${a.text}</strong> → <a href="/editor/nodes/${encodeURIComponent(a.to)}">${toLabel}</a></div>
+                    <form style="display:flex;gap:0.5rem;" method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/answers/${encodeURIComponent(a.id)}" style="margin-top:.25rem;">
+                        <input type="hidden" name="_csrf" value="${csrfToken}">
+                        <input style="flex:1;" name="text" type="text" value="${a.text}" />
+                        <button type="submit">Оновити відповідь</button>
+                    </form>
+                    ${child ? `
+                    <form method="post" action="/editor/nodes/${encodeURIComponent(child.id)}/delete" style="margin-top:.25rem;" onsubmit="return confirm('Реально видалити? (з підеревом)');">
+                        <input type="hidden" name="_csrf" value="${csrfToken}">
+                        <button type="submit">Видалити вузол</button>
+                    </form>
+                    ` : ``}
+                </li>
+                `;
+            }).join('')}
+            </ul>
+        `}
+        </section>
+    ` : `
+        <section class="edit-result">
+        <h2>Результат</h2>
+        <form method="post" action="/editor/nodes/${encodeURIComponent(node.id)}/result">
+            <input type="hidden" name="_csrf" value="${csrfToken}">
+            <label>Мітка<br><input class="form-field" name="label" type="text" value="${node.label || ''}" /></label><br>
+            <label>Значення<br><input class="form-field" name="result" type="text" value="${node.result || ''}" /></label><br>
+            <label>Опис<br><textarea class="form-field" name="desc" rows="3">${node.desc || ''}</textarea></label><br>
+            <button type="submit">Збереги</button>
+        </form>
+        </section>
+    `}
+    </section>
+</section>
+`; %>
+<%- include('_layout', { body: content, csrfToken: csrfToken }) %>
+
+==================================================
+// src\views\error.ejs
+==================================================
+
+<% const content = `
+  <section class="card error">
+    <h2>Помилка</h2>
+    <p>${message}</p>
+    <p><a href="/">Повернутись на головну</a></p>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken: "" }) %>
+
+==================================================
+// src\views\index.ejs
+==================================================
+
+<% const content = `
+  <section class="card">
+    <h2>Початкова сторінка</h2>
+    <p>Це простий вебклієнт до дерева рішень. Натисніть, щоб створити сесію і почати.</p>
+    <form method="post" action="/start">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <button type="submit">Почати тест</button>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>
+
+==================================================
+// src\views\new-node.ejs
+==================================================
+
+<% const t = (typeof type === 'string' && type === 'result') ? 'result' : 'question'; %>
+<% const content = `
+<section class="card">
+    <section class="new-child">
+    <div>
+        <h1>Новий підвузол для: <a href="/editor/nodes/${encodeURIComponent(parent.id)}">${parent.label || parent.id}</a></h1>
+        <nav style="margin:.5rem 0;">
+        <a href="/editor/nodes/${encodeURIComponent(parent.id)}">← Назад</a>
+        <span style="margin-left:1rem;">Тип: <strong>${t}</strong></span>
+        </nav>
+    </div>
+
+    <form method="post" action="/editor/nodes/${encodeURIComponent(parent.id)}/children">
+        <input type="hidden" name="_csrf" value="${csrfToken}">
+        <input type="hidden" name="type" value="${t}">
+
+        <fieldset style="margin-bottom:1rem;">
+        <legend>Відповідь</legend>
+        <label>Текст<br><input class="form-field" name="answerText" type="text" required></label>
+        </fieldset>
+
+        ${t === 'question' ? `
+        <fieldset>
+            <legend>Питання</legend>
+            <label>Мітка<br><input class="form-field" name="label" type="text"></label><br>
+            <label>Текст<br><textarea class="form-field" name="question" rows="3" required></textarea></label>
+        </fieldset>
+        ` : `
+        <fieldset>
+            <legend>Результат</legend>
+            <label>Мітка<br><input class="form-field" name="label" type="text"></label><br>
+            <label>Значення<br><input class="form-field" name="result" type="text" required></label><br>
+            <label>Опис<br><textarea class="form-field" name="desc" rows="3"></textarea></label>
+        </fieldset>
+        `}
+
+        <div class="buttons-wrap">
+            <button type="submit">Створити</button>
+            <a href="/editor/nodes/${encodeURIComponent(parent.id)}" style="margin-left:.5rem;">Відміна</a>
+        </div>
+    </form>
+    </section>
+</section>
+`; %>
+<%- include('_layout', { body: content, csrfToken: csrfToken }) %>
+
+
+==================================================
+// src\views\question.ejs
+==================================================
+
+<% const content = `
+  <section class="card">
+    <h2>Питання</h2>
+    <p class="q">${node.question}</p>
+    <form method="post" action="/answer">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      ${node.answers.map(a => `
+        <div class="answer">
+          <label>
+            <input type="radio" name="answerId" value="${a.id}" required>
+            ${a.text}
+          </label>
+        </div>
+      `).join('')}
+      <div class="actions">
+        <button type="submit">Далі</button>
+      </div>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>
+
+==================================================
+// src\views\result.ejs
+==================================================
+
+<% const content = `
+  <section class="card">
+    <h2>Результат</h2>
+    <article>
+      <h3>${result.result}</h3>
+      ${result.desc ? `<p>${result.desc}</p>` : ""}
+    </article>
+    <details>
+      <summary>Шлях відповідей</summary>
+      <ol>
+        ${history.map(h => `<li>${h.currentId} → ${h.pendingAnswerId}</li>`).join('')}
+      </ol>
+    </details>
+    <form method="post" action="/restart">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <button type="submit">Пройти ще раз</button>
+    </form>
+  </section>
+`; %>
+<%- include('_layout', { body: content, csrfToken }) %>
